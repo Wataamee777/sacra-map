@@ -1,0 +1,65 @@
+name: Live Minecraft Map (20min)
+
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install FTP tools
+        run: |
+          sudo apt update
+          sudo apt install -y lftp
+
+      - name: Sync world folder
+        run: |
+          mkdir -p world
+          lftp -u "$FTP_USER","$FTP_PASS" "$FTP_HOST" <<EOF
+          set ftp:ssl-allow no
+          set net:max-retries 1
+          set net:timeout 20
+          mirror \
+            --only-newer \
+            --parallel=2 \
+            --exclude-glob=*.lock \
+            $FTP_WORLD_PATH world
+          bye
+          EOF
+        env:
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_WORLD_PATH: ${{ secrets.FTP_WORLD_PATH }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Overviewer
+        run: pip install minecraft-overviewer
+
+      - name: Render overworld map
+        run: |
+          rm -rf output
+          overviewer world output \
+            --render=day \
+            --rendermodes=smooth_lighting \
+            --processes=1 \
+            --skip-scan
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: output

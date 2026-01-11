@@ -21,12 +21,12 @@ jobs:
           sudo apt update
           sudo apt install -y lftp
 
-      - name: Sync world folder (xserver-safe)
+      - name: Sync world folder (xserver-games-safe)
         run: |
           mkdir -p world
           lftp -u "$FTP_USER","$FTP_PASS" "$FTP_HOST" <<EOF
-          set ftp:ssl-allow yes
-          set ftp:ssl-force yes
+          set ftp:ssl-allow no
+          set ftp:ssl-force no
           set ftp:use-feat no
           set ftp:passive-mode on
           set net:max-retries 5
@@ -34,15 +34,15 @@ jobs:
           set net:reconnect-interval-base 5
 
           mirror \
-            --only-newer \
-            --parallel=1 \
-            --exclude-glob=level.dat \
-            --exclude-glob=session.lock \
-            $FTP_WORLD_PATH world
+             --only-newer \
+             --parallel=1 \
+             --exclude-glob=session.lock \
+             --exclude-glob=level.dat \
+             $FTP_WORLD_PATH world
 
-          get $FTP_WORLD_PATH/level.dat -o world/level.dat || true
-          bye
-          EOF
+           get $FTP_WORLD_PATH/level.dat -o world/level.dat || :
+           bye
+           EOF
         env:
           FTP_USER: ${{ secrets.FTP_USER }}
           FTP_PASS: ${{ secrets.FTP_PASS }}

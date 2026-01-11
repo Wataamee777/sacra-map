@@ -21,18 +21,26 @@ jobs:
           sudo apt update
           sudo apt install -y lftp
 
-      - name: Sync world folder
+      - name: Sync world folder (xserver-safe)
         run: |
           mkdir -p world
           lftp -u "$FTP_USER","$FTP_PASS" "$FTP_HOST" <<EOF
-          set ftp:ssl-allow no
-          set net:max-retries 1
-          set net:timeout 20
+          set ftp:ssl-allow yes
+          set ftp:ssl-force yes
+          set ftp:use-feat no
+          set ftp:passive-mode on
+          set net:max-retries 5
+          set net:timeout 30
+          set net:reconnect-interval-base 5
+
           mirror \
             --only-newer \
-            --parallel=2 \
-            --exclude-glob=*.lock \
+            --parallel=1 \
+            --exclude-glob=level.dat \
+            --exclude-glob=session.lock \
             $FTP_WORLD_PATH world
+
+          get $FTP_WORLD_PATH/level.dat -o world/level.dat || true
           bye
           EOF
         env:
